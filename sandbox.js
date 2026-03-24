@@ -26,7 +26,7 @@ function ask (question) {
 async function main () {
   const apihost   = flags.apihost   || process.env.AIO_RUNTIME_APIHOST   || (await ask('API Host [https://adobeioruntime.net]: ')).trim() || 'https://adobeioruntime.net'
   const namespace = flags.namespace || process.env.AIO_RUNTIME_NAMESPACE  || (await ask('Namespace: ')).trim()
-  const apiKey    = flags['api-key'] || process.env.AIO_RUNTIME_API_KEY   || (await ask('API Key: ')).trim()
+  const apiKey    = flags['api-key'] || process.env.AIO_RUNTIME_AUTH      || (await ask('API Key: ')).trim()
   const type      = flags.type
   const size      = flags.size
 

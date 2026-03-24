@@ -35,7 +35,7 @@ If a `.env` file exists in the directory where you run the command, credentials 
 ```
 AIO_RUNTIME_APIHOST=https://adobeioruntime.net
 AIO_RUNTIME_NAMESPACE=your-namespace
-AIO_RUNTIME_API_KEY=your-uuid:your-key
+AIO_RUNTIME_AUTH=your-uuid:your-key
 ```
 
 ## Flags
