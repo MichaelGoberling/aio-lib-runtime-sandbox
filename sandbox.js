@@ -8,7 +8,9 @@ const { values: flags } = parseArgs({
   options: {
     namespace: { type: 'string', short: 'n' },
     apihost:   { type: 'string', short: 'H' },
-    'api-key': { type: 'string', short: 'k' }
+    'api-key': { type: 'string', short: 'k' },
+    type:      { type: 'string', short: 't' },
+    size:      { type: 'string', short: 's' }
   },
   strict: false
 })
@@ -23,6 +25,8 @@ async function main () {
   const apihost   = flags.apihost   || (await ask('API Host [https://adobeioruntime.net]: ')).trim() || 'https://adobeioruntime.net'
   const namespace = flags.namespace || (await ask('Namespace: ')).trim()
   const apiKey    = flags['api-key'] || (await ask('API Key: ')).trim()
+  const type      = flags.type      || (await ask('Type [cpu:nodejs]: ')).trim() || 'cpu:nodejs'
+  const size      = flags.size      || (await ask('Size [MEDIUM]: ')).trim() || 'MEDIUM'
 
   if (!namespace || !apiKey) {
     console.error('Namespace and API Key are required.')
@@ -36,8 +40,8 @@ async function main () {
   const sandbox = await runtime.compute.sandbox.create({
     region: 'us-east-1',
     name: 'my-sandbox',
-    size: 'MEDIUM',
-    type: 'cpu:nodejs',
+    size,
+    type,
     workspace: 'workspace',
     maxLifetime: 3600,
     envs: {}

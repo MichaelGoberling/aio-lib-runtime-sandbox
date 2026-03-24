@@ -36,11 +36,15 @@ You can also pass credentials as flags to skip the prompts:
 npx github:MichaelGoberling/aio-lib-runtime-sandbox \
   --namespace my-namespace \
   --api-key uuid:key \
-  --apihost https://adobeioruntime.net
+  --apihost https://adobeioruntime.net \
+  --type cpu:nodejs \
+  --size MEDIUM
 ```
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--namespace` | `-n` | Runtime namespace |
-| `--api-key` | `-k` | Runtime API key (`uuid:key`) |
-| `--apihost` | `-H` | API host (default: `https://adobeioruntime.net`) |
+| Flag | Short | Description | Default |
+|------|-------|-------------|---------|
+| `--namespace` | `-n` | Runtime namespace | |
+| `--api-key` | `-k` | Runtime API key (`uuid:key`) | |
+| `--apihost` | `-H` | API host | `https://adobeioruntime.net` |
+| `--type` | `-t` | Sandbox type | `cpu:nodejs` |
+| `--size` | `-s` | Sandbox size | `MEDIUM` |
