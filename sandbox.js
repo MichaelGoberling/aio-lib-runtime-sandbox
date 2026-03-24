@@ -25,8 +25,8 @@ async function main () {
   const apihost   = flags.apihost   || (await ask('API Host [https://adobeioruntime.net]: ')).trim() || 'https://adobeioruntime.net'
   const namespace = flags.namespace || (await ask('Namespace: ')).trim()
   const apiKey    = flags['api-key'] || (await ask('API Key: ')).trim()
-  const type      = flags.type      || (await ask('Type [cpu:nodejs]: ')).trim() || 'cpu:nodejs'
-  const size      = flags.size      || (await ask('Size [MEDIUM]: ')).trim() || 'MEDIUM'
+  const type      = flags.type
+  const size      = flags.size
 
   if (!namespace || !apiKey) {
     console.error('Namespace and API Key are required.')
@@ -40,8 +40,8 @@ async function main () {
   const sandbox = await runtime.compute.sandbox.create({
     region: 'us-east-1',
     name: 'my-sandbox',
-    size,
-    type,
+    ...(type && { type }),
+    ...(size && { size }),
     workspace: 'workspace',
     maxLifetime: 3600,
     envs: {}

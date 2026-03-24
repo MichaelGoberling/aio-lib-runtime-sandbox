@@ -46,5 +46,5 @@ npx github:MichaelGoberling/aio-lib-runtime-sandbox \
 | `--namespace` | `-n` | Runtime namespace | |
 | `--api-key` | `-k` | Runtime API key (`uuid:key`) | |
 | `--apihost` | `-H` | API host | `https://adobeioruntime.net` |
-| `--type` | `-t` | Sandbox type | `cpu:nodejs` |
-| `--size` | `-s` | Sandbox size | `MEDIUM` |
+| `--type` | `-t` | Sandbox type (optional) | |
+| `--size` | `-s` | Sandbox size (optional) | |
