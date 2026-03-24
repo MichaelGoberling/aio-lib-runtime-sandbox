@@ -6,7 +6,8 @@
     "aio-sandbox": "sandbox.js"
   },
   "dependencies": {
-    "@adobe/aio-lib-runtime": "adobe/aio-lib-runtime#agent-sandboxes"
+    "@adobe/aio-lib-runtime": "adobe/aio-lib-runtime#agent-sandboxes",
+    "dotenv": "^16.0.0"
   },
   "engines": {
     "node": ">=18"

@@ -28,6 +28,16 @@ Sandbox ready. Type a command to execute, or "exit"/"quit" to destroy and exit.
 Sandbox destroyed.
 ```
 
+## .env File
+
+If a `.env` file exists in the directory where you run the command, credentials will be read from it automatically — no prompts needed:
+
+```
+AIO_RUNTIME_APIHOST=https://adobeioruntime.net
+AIO_RUNTIME_NAMESPACE=your-namespace
+AIO_RUNTIME_API_KEY=your-uuid:your-key
+```
+
 ## Flags
 
 You can also pass credentials as flags to skip the prompts:
