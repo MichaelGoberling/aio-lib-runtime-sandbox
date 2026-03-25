@@ -58,3 +58,34 @@ npx github:MichaelGoberling/aio-lib-runtime-sandbox \
 | `--apihost` | `-H` | API host | `https://adobeioruntime.net` |
 | `--type` | `-t` | Sandbox type (optional) | |
 | `--size` | `-s` | Sandbox size (optional) | |
+| `--egress` | `-e` | Egress rule in `host:port[:protocol]` format (repeatable) | |
+| `--allow-all-egress` | | Allow all outbound egress (skip default-deny) | `false` |
+
+## Network Policy
+
+By default, sandboxes run with default deny all egress. Use the `--egress` and `--allow-all-egress` flags to control outbound access.
+
+### Specific rules
+
+Use `--egress` with format `host:port` or `host:port:protocol` (protocol default is TCP):
+
+```bash
+npx github:MichaelGoberling/aio-lib-runtime-sandbox \
+  --egress "api.github.com:443" \
+```
+
+### Allow all
+
+For development/debugging, you can skip the default-deny policy entirely:
+
+```bash
+npx github:MichaelGoberling/aio-lib-runtime-sandbox --allow-all-egress
+```
+
+### Default deny
+
+When neither flag is provided, all egress is denied.
+
+```bash
+npx github:MichaelGoberling/aio-lib-runtime-sandbox
+```
