@@ -40,7 +40,6 @@ async function main () {
 
   console.log('\nCreating sandbox...')
   const sandbox = await runtime.compute.sandbox.create({
-    region: 'us-east-1',
     name: 'my-sandbox',
     ...(type && { type }),
     ...(size && { size }),
