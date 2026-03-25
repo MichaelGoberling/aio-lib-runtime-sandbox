@@ -2,8 +2,8 @@
 
 require('dotenv').config()
 
-const { parseArgs } = require('util')
-const readline = require('readline')
+const { parseArgs } = require('node:util')
+const readline = require('node:readline')
 const { init } = require('@adobe/aio-lib-runtime')
 
 const { values: flags } = parseArgs({
