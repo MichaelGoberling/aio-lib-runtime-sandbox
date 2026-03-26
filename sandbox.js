@@ -55,6 +55,15 @@ function ask (question) {
 }
 
 async function main () {
+  const needsPrompt = !flags.apihost && !process.env.AIO_RUNTIME_APIHOST ||
+                      !flags.namespace && !process.env.AIO_RUNTIME_NAMESPACE ||
+                      !flags['api-key'] && !process.env.AIO_RUNTIME_AUTH
+
+  if (needsPrompt) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    console.log('\n\x1b[1m── Adobe I/O Runtime Sandbox ──\x1b[0m\n')
+  }
+
   const apihost   = flags.apihost   || process.env.AIO_RUNTIME_APIHOST   || (await ask('API Host [https://adobeioruntime.net]: ')).trim() || 'https://adobeioruntime.net'
   const namespace = flags.namespace || process.env.AIO_RUNTIME_NAMESPACE  || (await ask('Namespace: ')).trim()
   const apiKey    = flags['api-key'] || process.env.AIO_RUNTIME_AUTH      || (await ask('API Key: ')).trim()
