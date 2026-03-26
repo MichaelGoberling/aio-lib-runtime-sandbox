@@ -4,7 +4,7 @@ require('dotenv').config()
 
 const { parseArgs } = require('node:util')
 const readline = require('node:readline')
-const { init } = require('@adobe/aio-lib-runtime')
+const { init, SandboxNetworkPolicy } = require('@adobe/aio-lib-runtime')
 
 const { values: flags } = parseArgs({
   options: {
@@ -14,7 +14,7 @@ const { values: flags } = parseArgs({
     type:               { type: 'string', short: 't' },
     size:               { type: 'string', short: 's' },
     egress:             { type: 'string', multiple: true, short: 'e' },
-    'allow-all-egress': { type: 'boolean', default: false }
+    'network-policy':   { type: 'string', short: 'p' }
   },
   strict: false
 })
@@ -76,17 +76,29 @@ async function main () {
     process.exit(1)
   }
 
-  if (flags.egress && flags['allow-all-egress']) {
-    console.error('--egress and --allow-all-egress are mutually exclusive.')
+  const SUPPORTED_POLICIES = ['allow-all', 'base']
+  if (flags['network-policy'] && !SUPPORTED_POLICIES.includes(flags['network-policy'])) {
+    console.error(`Unknown network policy: "${flags['network-policy']}". Supported: ${SUPPORTED_POLICIES.join(', ')}`)
+    rl.close()
+    process.exit(1)
+  }
+
+  if (flags['network-policy'] === 'allow-all' && flags.egress) {
+    console.error('--egress has no effect with --network-policy allow-all.')
     rl.close()
     process.exit(1)
   }
 
   let policy
-  if (flags['allow-all-egress']) {
+  if (flags['network-policy'] === 'allow-all') {
     policy = { network: { egress: 'allow-all' } }
-  } else if (flags.egress) {
-    policy = parseEgressFlags(flags.egress)
+  } else {
+    const presetEgress = flags['network-policy'] === 'base' ? [...SandboxNetworkPolicy.base.egress] : []
+    const adHocEgress = flags.egress ? parseEgressFlags(flags.egress).network.egress : []
+    const combined = [...presetEgress, ...adHocEgress]
+    if (combined.length > 0) {
+      policy = { network: { egress: combined } }
+    }
   }
 
   const runtime = await init({ apihost, namespace, api_key: apiKey })
@@ -104,10 +116,13 @@ async function main () {
   console.log('Created:', sandbox.id)
 
   if (policy) {
-    if (policy.network?.egress === 'allow-all') {
+    if (flags['network-policy'] === 'allow-all') {
       console.log('Network policy: allow-all egress')
-    } else if (Array.isArray(policy.network?.egress)) {
-      console.log('Network policy: egress allowed to:')
+    } else {
+      const label = flags['network-policy'] === 'base'
+        ? flags.egress ? 'base + custom egress' : 'base (GitHub + PyPI + npm + Anthropic)'
+        : 'custom egress'
+      console.log(`Network policy: ${label}`)
       policy.network.egress.forEach(rule => {
         const proto = rule.protocol || 'TCP'
         console.log(`  - ${rule.host}:${rule.port} (${proto})`)

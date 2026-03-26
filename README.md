@@ -59,32 +59,49 @@ npx github:MichaelGoberling/aio-lib-runtime-sandbox \
 | `--type` | `-t` | Sandbox type (optional) | |
 | `--size` | `-s` | Sandbox size (optional) | |
 | `--egress` | `-e` | Egress rule in `host:port[:protocol]` format (repeatable) | |
-| `--allow-all-egress` | | Allow all outbound egress (skip default-deny) | `false` |
+| `--network-policy` | `-p` | Named network policy preset (supported: `base`, `allow-all`) | |
 
 ## Network Policy
 
-By default, sandboxes run with default deny all egress. Use the `--egress` and `--allow-all-egress` flags to control outbound access.
+By default, sandboxes run with default deny all egress. Use `--network-policy` and/or `--egress` to control outbound access.
 
-### Specific rules
+`--egress` rules are additive — they stack on top of any `--network-policy` preset. The one exception is `allow-all`, which already permits everything and cannot be combined with `--egress`.
 
-Use `--egress` with format `host:port` or `host:port:protocol` (protocol default is TCP):
+### Named policy presets
+
+| Preset | Description |
+|--------|-------------|
+| `base` | GitHub + PyPI + npm + Anthropic — sensible default for agent workloads |
+| `allow-all` | All outbound traffic permitted (useful for dev/debug) |
+
+```bash
+npx github:MichaelGoberling/aio-lib-runtime-sandbox --network-policy base
+npx github:MichaelGoberling/aio-lib-runtime-sandbox --network-policy allow-all
+```
+
+### Composing a preset with extra rules
+
+Use `--egress` alongside `--network-policy base` to add hosts on top of the preset:
+
+```bash
+npx github:MichaelGoberling/aio-lib-runtime-sandbox \
+  --network-policy base \
+  --egress "myapi.example.com:443"
+```
+
+### Specific rules only
+
+Use `--egress` on its own with format `host:port` or `host:port:protocol` (protocol default is TCP):
 
 ```bash
 npx github:MichaelGoberling/aio-lib-runtime-sandbox \
   --egress "api.github.com:443" \
-```
-
-### Allow all
-
-For development/debugging, you can skip the default-deny policy entirely:
-
-```bash
-npx github:MichaelGoberling/aio-lib-runtime-sandbox --allow-all-egress
+  --egress "pypi.org:443"
 ```
 
 ### Default deny
 
-When neither flag is provided, all egress is denied.
+When no flags are provided, all egress is denied.
 
 ```bash
 npx github:MichaelGoberling/aio-lib-runtime-sandbox
