@@ -135,7 +135,7 @@ async function main () {
   const { stdout, exitCode } = await sandbox.exec('node --version', { timeout: 10000 })
   console.log('Node version:', stdout.trim(), '| exit:', exitCode)
 
-  console.log('\nSandbox ready. Type ".help" for stdin features, or "exit" to destroy and quit.\n')
+  console.log('\nSandbox ready. Type ".help" for commands, or "exit" to destroy and quit.\n')
 
   while (true) {
     const cmd = await ask('> ')
@@ -149,9 +149,7 @@ async function main () {
     }
 
     try {
-      if (trimmed.startsWith('.interact ')) {
-        await handleInteract(sandbox, rl, ask, trimmed.slice('.interact '.length).trim())
-      } else if (trimmed.includes(' <<< ')) {
+      if (trimmed.includes(' <<< ')) {
         await handleHereString(sandbox, trimmed)
       } else {
         await handleExec(sandbox, trimmed)
@@ -171,11 +169,6 @@ function printHelp () {
 \x1b[1mStdin:\x1b[0m
   \x1b[36mcommand <<< "text"\x1b[0m        Send inline text as stdin
                               cat -n <<< "hello world"
-
-  \x1b[36m.interact command\x1b[0m         Stream stdin line-by-line to a running process
-                            with live output. ".done" sends EOF, ".kill" aborts.
-                              .interact python3 -i
-                              .interact node --interactive
 
 \x1b[1mOther:\x1b[0m
   \x1b[36mexit / quit\x1b[0m               Destroy sandbox and exit
@@ -203,48 +196,6 @@ async function handleHereString (sandbox, input) {
   const result = await sandbox.exec(command, { timeout: 30000, stdin: text })
   if (result.stdout) process.stdout.write(result.stdout)
   if (result.stderr) process.stderr.write(result.stderr)
-  console.log(`[exit: ${result.exitCode}]`)
-}
-
-async function handleInteract (sandbox, rl, ask, command) {
-  console.log(`\x1b[2m(interactive stdin — type lines, ".done" to close stdin, ".kill" to abort)\x1b[0m`)
-
-  let exited = false
-  const execPromise = sandbox.exec(command, {
-    timeout: 120000,
-    onOutput: (data, stream) => {
-      if (stream === 'stderr') {
-        process.stderr.write(`\x1b[31m${data}\x1b[0m`)
-      } else {
-        process.stdout.write(data)
-      }
-    }
-  })
-  const execId = execPromise.execId
-
-  execPromise
-    .then(() => { exited = true })
-    .catch(() => { exited = true })
-
-  while (!exited) {
-    const line = await ask('stdin> ')
-    if (exited) break
-    if (line === '.done') {
-      sandbox.closeStdin(execId)
-      break
-    }
-    if (line === '.kill') {
-      sandbox.kill(execId)
-      break
-    }
-    sandbox.writeStdin(execId, line + '\n')
-  }
-
-  const result = await execPromise
-  if (!exited) {
-    if (result.stdout) process.stdout.write(result.stdout)
-    if (result.stderr) process.stderr.write(result.stderr)
-  }
   console.log(`[exit: ${result.exitCode}]`)
 }
 
