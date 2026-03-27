@@ -135,17 +135,27 @@ async function main () {
   const { stdout, exitCode } = await sandbox.exec('node --version', { timeout: 10000 })
   console.log('Node version:', stdout.trim(), '| exit:', exitCode)
 
-  console.log('\nSandbox ready. Type a command to execute, or "exit"/"quit" to destroy and exit.\n')
+  console.log('\nSandbox ready. Type ".help" for stdin features, or "exit" to destroy and quit.\n')
 
   while (true) {
     const cmd = await ask('> ')
-    if (cmd.trim() === 'exit' || cmd.trim() === 'quit') break
-    if (!cmd.trim()) continue
+    const trimmed = cmd.trim()
+    if (trimmed === 'exit' || trimmed === 'quit') break
+    if (!trimmed) continue
+
+    if (trimmed === '.help') {
+      printHelp()
+      continue
+    }
+
     try {
-      const result = await sandbox.exec(cmd, { timeout: 30000 })
-      if (result.stdout) process.stdout.write(result.stdout)
-      if (result.stderr) process.stderr.write(result.stderr)
-      console.log(`[exit: ${result.exitCode}]`)
+      if (trimmed.startsWith('.interact ')) {
+        await handleInteract(sandbox, rl, ask, trimmed.slice('.interact '.length).trim())
+      } else if (trimmed.includes(' <<< ')) {
+        await handleHereString(sandbox, trimmed)
+      } else {
+        await handleExec(sandbox, trimmed)
+      }
     } catch (err) {
       console.error('exec error:', err.message)
     }
@@ -154,6 +164,88 @@ async function main () {
   rl.close()
   await sandbox.destroy()
   console.log('Sandbox destroyed.')
+}
+
+function printHelp () {
+  console.log(`
+\x1b[1mStdin:\x1b[0m
+  \x1b[36mcommand <<< "text"\x1b[0m        Send inline text as stdin
+                              cat -n <<< "hello world"
+
+  \x1b[36m.interact command\x1b[0m         Stream stdin line-by-line to a running process
+                            with live output. ".done" sends EOF, ".kill" aborts.
+                              .interact python3 -i
+                              .interact node --interactive
+
+\x1b[1mOther:\x1b[0m
+  \x1b[36mexit / quit\x1b[0m               Destroy sandbox and exit
+  \x1b[36m.help\x1b[0m                     Show this help
+`)
+}
+
+async function handleExec (sandbox, cmd) {
+  const result = await sandbox.exec(cmd, { timeout: 30000 })
+  if (result.stdout) process.stdout.write(result.stdout)
+  if (result.stderr) process.stderr.write(result.stderr)
+  console.log(`[exit: ${result.exitCode}]`)
+}
+
+async function handleHereString (sandbox, input) {
+  const idx = input.indexOf(' <<< ')
+  const command = input.slice(0, idx).trim()
+  let text = input.slice(idx + 5).trim()
+  if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+    text = text.slice(1, -1)
+  }
+  text += '\n'
+
+  console.log(`\x1b[2m(sending ${text.length} bytes to stdin)\x1b[0m`)
+  const result = await sandbox.exec(command, { timeout: 30000, stdin: text })
+  if (result.stdout) process.stdout.write(result.stdout)
+  if (result.stderr) process.stderr.write(result.stderr)
+  console.log(`[exit: ${result.exitCode}]`)
+}
+
+async function handleInteract (sandbox, rl, ask, command) {
+  console.log(`\x1b[2m(interactive stdin — type lines, ".done" to close stdin, ".kill" to abort)\x1b[0m`)
+
+  let exited = false
+  const execPromise = sandbox.exec(command, {
+    timeout: 120000,
+    onOutput: (data, stream) => {
+      if (stream === 'stderr') {
+        process.stderr.write(`\x1b[31m${data}\x1b[0m`)
+      } else {
+        process.stdout.write(data)
+      }
+    }
+  })
+  const execId = execPromise.execId
+
+  execPromise
+    .then(() => { exited = true })
+    .catch(() => { exited = true })
+
+  while (!exited) {
+    const line = await ask('stdin> ')
+    if (exited) break
+    if (line === '.done') {
+      sandbox.closeStdin(execId)
+      break
+    }
+    if (line === '.kill') {
+      sandbox.kill(execId)
+      break
+    }
+    sandbox.writeStdin(execId, line + '\n')
+  }
+
+  const result = await execPromise
+  if (!exited) {
+    if (result.stdout) process.stdout.write(result.stdout)
+    if (result.stderr) process.stderr.write(result.stderr)
+  }
+  console.log(`[exit: ${result.exitCode}]`)
 }
 
 main().catch(err => { console.error(err.message || err); rl.close(); process.exit(1) })
