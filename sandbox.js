@@ -138,7 +138,7 @@ async function main () {
   console.log('\nSandbox ready. Type ".help" for commands, or "exit" to destroy and quit.\n')
 
   while (true) {
-    const cmd = await ask('> ')
+    const cmd = await ask('Enter command to run on sandbox: ')
     const trimmed = cmd.trim()
     if (trimmed === 'exit' || trimmed === 'quit') break
     if (!trimmed) continue
@@ -166,6 +166,11 @@ async function main () {
 
 function printHelp () {
   console.log(`
+\x1b[1mHow it works:\x1b[0m
+  Each command runs in a fresh process on the sandbox.
+  Shell state (working directory, exports) does not persist between commands.
+  To run multi-step workflows, chain commands: cd mydir && npm install
+
 \x1b[1mStdin:\x1b[0m
   \x1b[36mcommand <<< "text"\x1b[0m        Send inline text as stdin
                               cat -n <<< "hello world"
@@ -194,9 +199,14 @@ async function handleHereString (sandbox, input) {
 
   console.log(`\x1b[2m(sending ${text.length} bytes to stdin)\x1b[0m`)
   const result = await sandbox.exec(command, { timeout: 30000, stdin: text })
-  if (result.stdout) process.stdout.write(result.stdout)
-  if (result.stderr) process.stderr.write(result.stderr)
-  console.log(`[exit: ${result.exitCode}]`)
+  const hasOutput = result.stdout || result.stderr
+  if (hasOutput) {
+    console.log('<output>')
+    if (result.stdout) process.stdout.write(result.stdout)
+    if (result.stderr) process.stderr.write(result.stderr)
+    console.log('</output>')
+  }
+  console.log(`[exit: ${result.exitCode}]\n`)
 }
 
 main().catch(err => { console.error(err.message || err); rl.close(); process.exit(1) })
