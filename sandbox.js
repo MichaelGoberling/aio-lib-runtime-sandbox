@@ -4,7 +4,7 @@ require('dotenv').config()
 
 const { parseArgs } = require('node:util')
 const readline = require('node:readline')
-const { init, SandboxNetworkPolicy } = require('@adobe/aio-lib-runtime')
+const { init } = require('@adobe/aio-lib-runtime')
 
 const { values: flags } = parseArgs({
   options: {
@@ -13,8 +13,7 @@ const { values: flags } = parseArgs({
     'api-key':          { type: 'string', short: 'k' },
     type:               { type: 'string', short: 't' },
     size:               { type: 'string', short: 's' },
-    egress:             { type: 'string', multiple: true, short: 'e' },
-    'network-policy':   { type: 'string', short: 'p' }
+    egress:             { type: 'string', multiple: true, short: 'e' }
   },
   strict: false
 })
@@ -23,9 +22,14 @@ function parseEgressFlags (egressArgs) {
   if (!egressArgs || egressArgs.length === 0) return undefined
 
   const rules = egressArgs.map(arg => {
-    const parts = arg.split(':')
+    // Split on | to separate L4 (host:port[:protocol]) from optional L7 (METHOD[,METHOD]:path)
+    const pipeIdx = arg.indexOf('|')
+    const l4Part = pipeIdx === -1 ? arg : arg.slice(0, pipeIdx)
+    const l7Part = pipeIdx === -1 ? null : arg.slice(pipeIdx + 1)
+
+    const parts = l4Part.split(':')
     if (parts.length < 2 || parts.length > 3) {
-      console.error(`Invalid egress format: "${arg}". Expected host:port or host:port:protocol`)
+      console.error(`Invalid egress format: "${arg}". Expected host:port[:protocol][|METHOD:path]`)
       process.exit(1)
     }
     const port = parseInt(parts[1], 10)
@@ -42,6 +46,25 @@ function parseEgressFlags (egressArgs) {
       }
       rule.protocol = proto
     }
+
+    if (l7Part) {
+      const colonIdx = l7Part.indexOf(':')
+      if (colonIdx === -1 || !l7Part.slice(colonIdx + 1).startsWith('/')) {
+        console.error(`Invalid L7 rule: "${arg}". Expected METHOD[,METHOD]:/ after |`)
+        process.exit(1)
+      }
+      const methods = l7Part.slice(0, colonIdx).split(',').map(m => m.trim().toUpperCase())
+      const pathPattern = l7Part.slice(colonIdx + 1)
+      const validMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
+      for (const method of methods) {
+        if (!validMethods.includes(method)) {
+          console.error(`Invalid HTTP method "${method}" in "${arg}". Must be one of: ${validMethods.join(', ')}`)
+          process.exit(1)
+        }
+      }
+      rule.rules = [{ methods, pathPattern }]
+    }
+
     return rule
   })
 
@@ -76,28 +99,17 @@ async function main () {
     process.exit(1)
   }
 
-  const SUPPORTED_POLICIES = ['allow-all', 'base']
-  if (flags['network-policy'] && !SUPPORTED_POLICIES.includes(flags['network-policy'])) {
-    console.error(`Unknown network policy: "${flags['network-policy']}". Supported: ${SUPPORTED_POLICIES.join(', ')}`)
-    rl.close()
-    process.exit(1)
-  }
-
-  if (flags['network-policy'] === 'allow-all' && flags.egress) {
-    console.error('--egress has no effect with --network-policy allow-all.')
-    rl.close()
-    process.exit(1)
-  }
-
   let policy
-  if (flags['network-policy'] === 'allow-all') {
-    policy = { network: { egress: 'allow-all' } }
-  } else {
-    const presetEgress = flags['network-policy'] === 'base' ? [...SandboxNetworkPolicy.base.egress] : []
-    const adHocEgress = flags.egress ? parseEgressFlags(flags.egress).network.egress : []
-    const combined = [...presetEgress, ...adHocEgress]
-    if (combined.length > 0) {
-      policy = { network: { egress: combined } }
+  if (flags.egress) {
+    if (flags.egress.length === 1 && flags.egress[0] === 'allow-all') {
+      policy = { network: { egress: 'allow-all' } }
+    } else {
+      if (flags.egress.includes('allow-all')) {
+        console.error('allow-all cannot be combined with other egress rules.')
+        rl.close()
+        process.exit(1)
+      }
+      policy = { network: { egress: parseEgressFlags(flags.egress).network.egress } }
     }
   }
 
@@ -116,16 +128,14 @@ async function main () {
   console.log('Created:', sandbox.id)
 
   if (policy) {
-    if (flags['network-policy'] === 'allow-all') {
+    if (policy.network.egress === 'allow-all') {
       console.log('Network policy: allow-all egress')
     } else {
-      const label = flags['network-policy'] === 'base'
-        ? flags.egress ? 'base + custom egress' : 'base (GitHub + PyPI + npm + Anthropic)'
-        : 'custom egress'
-      console.log(`Network policy: ${label}`)
+      console.log('Network policy: custom egress')
       policy.network.egress.forEach(rule => {
         const proto = rule.protocol || 'TCP'
-        console.log(`  - ${rule.host}:${rule.port} (${proto})`)
+        const l7 = rule.rules ? ' ' + rule.rules.map(r => `${r.methods.join(',')}:${r.pathPattern}`).join(' ') : ''
+        console.log(`  - ${rule.host}:${rule.port} (${proto})${l7}`)
       })
     }
   } else {

@@ -4,33 +4,21 @@ Interactive CLI for working with Adobe I/O Runtime compute sandboxes.
 
 ## Usage
 
+Get runtime credentials
+
+```bash
+npx aio-internal-login stage
+```
+
 Run directly with `npx` — no install or config files needed:
 
 ```bash
 npx github:MichaelGoberling/aio-lib-runtime-sandbox
 ```
 
-You'll be prompted for your credentials:
-
-```
-API Host [https://adobeioruntime.net]: 
-Namespace: my-namespace
-API Key: ••••••••
-
-Creating sandbox...
-Created: sandbox-abc123
-Node version: v20.11.0 | exit: 0
-
-Sandbox ready. Type a command to execute, or "exit"/"quit" to destroy and exit.
-
-> ls
-> exit
-Sandbox destroyed.
-```
-
 ## .env File
 
-If a `.env` file exists in the directory where you run the command, credentials will be read from it automatically — no prompts needed:
+If a `.env` file exists in the directory where you run the command, credentials will be read from it.
 
 ```
 AIO_RUNTIME_APIHOST=https://adobeioruntime.net
@@ -58,45 +46,25 @@ npx github:MichaelGoberling/aio-lib-runtime-sandbox \
 | `--apihost` | `-H` | API host | `https://adobeioruntime.net` |
 | `--type` | `-t` | Sandbox type (optional) | |
 | `--size` | `-s` | Sandbox size (optional) | |
-| `--egress` | `-e` | Egress rule in `host:port[:protocol]` format (repeatable) | |
-| `--network-policy` | `-p` | Named network policy preset (supported: `base`, `allow-all`) | |
+| `--egress` | `-e` | Egress rule in `host:port[:protocol][|METHOD:path]` format, or `allow-all` (repeatable) | |
 
 ## Network Policy
 
-By default, sandboxes run with default deny all egress. Use `--network-policy` and/or `--egress` to control outbound access.
-
-`--egress` rules are additive — they stack on top of any `--network-policy` preset. The one exception is `allow-all`, which already permits everything and cannot be combined with `--egress`.
-
-### Named policy presets
-
-| Preset | Description |
-|--------|-------------|
-| `base` | GitHub + PyPI + npm + Anthropic — sensible default for agent workloads |
-| `allow-all` | All outbound traffic permitted (useful for dev/debug) |
+By default, sandboxes run with default-deny egress. Use `--egress` to allow specific outbound traffic.
 
 ```bash
-npx github:MichaelGoberling/aio-lib-runtime-sandbox --network-policy base
-npx github:MichaelGoberling/aio-lib-runtime-sandbox --network-policy allow-all
+# Mix L4-only rules with L7-filtered rules
+npx github:MichaelGoberling/aio-lib-runtime-sandbox \
+  --egress "pypi.org:443" \
+  --egress "api.github.com:443|GET:/repos/**"
 ```
 
-### Composing a preset with extra rules
+### Allow all
 
-Use `--egress` alongside `--network-policy base` to add hosts on top of the preset:
-
-```bash
-npx github:MichaelGoberling/aio-lib-runtime-sandbox \
-  --network-policy base \
-  --egress "myapi.example.com:443"
-```
-
-### Specific rules only
-
-Use `--egress` on its own with format `host:port` or `host:port:protocol` (protocol default is TCP):
+Pass `allow-all` as the egress value to permit all outbound traffic (useful for debugging):
 
 ```bash
-npx github:MichaelGoberling/aio-lib-runtime-sandbox \
-  --egress "api.github.com:443" \
-  --egress "pypi.org:443"
+npx github:MichaelGoberling/aio-lib-runtime-sandbox -e allow-all
 ```
 
 ### Default deny
